@@ -40,13 +40,15 @@ export class GetAllProductDto extends PaginationDto {
   @IsEnum(EnumProductSort)
   sort?: EnumProductSort;
 
-  @IsOptional()
-  @IsString()
-  searchTerm?: string;
-
   @IsString()
   perPage?: string;
 
   @IsString()
   page?: string;
+}
+
+export class GetAllFoundProductDto extends GetAllProductDto {
+  @IsOptional()
+  @IsString()
+  searchTerm?: string;
 }

@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { AuthDto } from './dto/auth.dto';
+import { AuthDto, AuthRegisterDto } from './dto/auth.dto';
 import { faker } from '@faker-js/faker';
 import { hash, verify } from 'argon2';
 import { JwtService } from '@nestjs/jwt';
@@ -46,7 +46,7 @@ export class AuthService {
     };
   }
 
-  async register(dto: AuthDto) {
+  async register(dto: AuthRegisterDto) {
     const oldUser = await this.prisma.user.findUnique({
       where: {
         email: dto.email,
@@ -55,12 +55,22 @@ export class AuthService {
 
     if (oldUser) throw new BadRequestException('User already exists');
 
+    // const user = await this.prisma.user.create({
+    //   data: {
+    //     email: dto.email,
+    //     name: faker.name.firstName(),
+    //     avatarPath: faker.image.avatar(),
+    //     phone: faker.phone.number('+7(###)-###-##-##'),
+    //     password: await hash(dto.password),
+    //   },
+    // });
+
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
-        name: faker.name.firstName(),
+        name: dto.fullName,
         avatarPath: faker.image.avatar(),
-        phone: faker.phone.number('+7(###)-###-##-##'),
+        phone: dto.phone,
         password: await hash(dto.password),
       },
     });

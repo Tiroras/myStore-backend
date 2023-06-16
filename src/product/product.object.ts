@@ -10,14 +10,14 @@ export const productObj: Prisma.ProductSelect = {
   images: true,
   createAt: true,
   slug: true,
-};
-
-export const productObjFullest: Prisma.ProductSelect = {
-  ...productObj,
   reviews: {
     select: reviewObject,
   },
   category: {
     select: categoryObject,
   },
+};
+
+export const productObjFullest: Prisma.ProductSelect = {
+  ...productObj,
 };

@@ -5,9 +5,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { UserDto } from './dto/user.dto';
-import { productObj, userObj } from './return-user.object';
+import { userObj } from './return-user.object';
 import { Prisma } from '@prisma/client';
 import { hash } from 'argon2';
+import { productObjFullest } from 'src/product/product.object';
 
 @Injectable()
 export class UserService {
@@ -22,9 +23,15 @@ export class UserService {
         ...userObj,
         favorites: {
           select: {
-            ...productObj,
+            ...productObjFullest,
+            category: {
+              select: {
+                slug: true,
+              },
+            },
           },
         },
+        reviews: true,
         ...selectObject,
       },
     });

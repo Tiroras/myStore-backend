@@ -13,7 +13,11 @@ import {
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { Auth } from 'src/auth/decorators/auth.decorator';
-import { GetAllProductDto, ProductDto } from './product.dto';
+import {
+  GetAllFoundProductDto,
+  GetAllProductDto,
+  ProductDto,
+} from './product.dto';
 
 @Controller('products')
 export class ProductController {
@@ -56,13 +60,16 @@ export class ProductController {
 
   @UsePipes(new ValidationPipe())
   @Get()
-  getProducts(@Query() dto: GetAllProductDto) {
+  getProducts(@Query() dto: GetAllFoundProductDto) {
     return this.productService.getAll(dto);
   }
 
   @Get('by-category/:slug')
-  getProductByCategory(@Param('slug') slug: string) {
-    return this.productService.getAllByCategory(slug);
+  getProductByCategory(
+    @Param('slug') slug: string,
+    @Query() dto: GetAllProductDto,
+  ) {
+    return this.productService.getAllByCategory(slug, dto);
   }
 
   @Get('similar/:id')

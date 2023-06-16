@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { productObj, productObjFullest } from './product.object';
-import { EnumProductSort, GetAllProductDto, ProductDto } from './product.dto';
+import {
+  EnumProductSort,
+  GetAllFoundProductDto,
+  GetAllProductDto,
+  ProductDto,
+} from './product.dto';
 import { generateSlug } from 'src/utils/generateSlug';
 import { PaginationService } from 'src/pagination/pagination.service';
 import { Prisma } from '@prisma/client';
@@ -15,51 +20,45 @@ export class ProductService {
     private readonly categoryService: CategoryService,
   ) {}
 
-  async byId(id: number) {
+  async getProduct(where: Prisma.ProductWhereUniqueInput) {
     const product = await this.prisma.product.findUnique({
-      where: {
-        id,
-      },
+      where,
       select: productObjFullest,
     });
 
     if (!product) throw new NotFoundException('Product not found');
 
     return product;
+  }
+
+  async getProducts(delegate?: Prisma.ProductFindManyArgs) {
+    const products = await this.prisma.product.findMany(delegate);
+
+    if (!products) throw new NotFoundException('Products not found');
+
+    return {
+      products,
+      length: await this.getCount(delegate.where),
+    };
+  }
+
+  async byId(id: number) {
+    return await this.getProduct({
+      id,
+    });
   }
 
   async bySlug(slug: string) {
-    const product = await this.prisma.product.findUnique({
-      where: {
-        slug,
-      },
-      select: productObjFullest,
+    return await this.getProduct({
+      slug,
     });
-
-    if (!product) throw new NotFoundException('Product not found');
-
-    return product;
   }
 
-  async getAll(dto: GetAllProductDto = {}) {
+  async getAll(dto: GetAllFoundProductDto = {}) {
     const { sort, searchTerm } = dto;
 
-    const prismaSort: Prisma.ProductOrderByWithRelationInput[] = [];
-
-    switch (sort) {
-      case EnumProductSort.LOW_PRICE:
-        prismaSort.push({ price: 'asc' });
-        break;
-      case EnumProductSort.HIGH_PRICE:
-        prismaSort.push({ price: 'desc' });
-        break;
-      case EnumProductSort.NEWEST:
-        prismaSort.push({ price: 'desc' });
-        break;
-      case EnumProductSort.OLDEST:
-        prismaSort.push({ price: 'asc' });
-        break;
-    }
+    const prismaSort: Prisma.ProductOrderByWithRelationInput[] =
+      this.getSort(sort);
 
     const prismaSearchTermFilter: Prisma.ProductWhereInput = searchTerm
       ? {
@@ -90,34 +89,62 @@ export class ProductService {
 
     const { perPage, skip } = this.paginationService.getPagination(dto);
 
-    const products = await this.prisma.product.findMany({
+    const data = await this.getProducts({
       skip,
       take: perPage,
       where: prismaSearchTermFilter,
       orderBy: prismaSort,
+      select: productObj,
     });
 
-    return {
-      products,
-      length: await this.prisma.product.count({
-        where: prismaSearchTermFilter,
-      }),
-    };
+    return data;
   }
 
-  async getAllByCategory(categorySlug: string) {
-    const products = await this.prisma.product.findMany({
-      where: {
-        category: {
-          slug: categorySlug,
-        },
+  async getAllByCategory(categorySlug: string, dto: GetAllProductDto) {
+    const where = {
+      category: {
+        slug: categorySlug,
       },
+    };
+
+    const { perPage, skip } = this.paginationService.getPagination(dto);
+    const prismaSort = this.getSort(dto.sort);
+
+    const data = await this.getProducts({
+      skip,
+      take: perPage,
+      where,
       select: productObjFullest,
+      orderBy: prismaSort,
     });
 
-    if (!products) throw new NotFoundException('Products not found');
+    return data;
+  }
 
-    return products;
+  async getSimiliar(id: number) {
+    const currentProduct = await this.byId(id);
+
+    if (!currentProduct)
+      throw new NotFoundException('Current product not found');
+
+    const where = {
+      category: {
+        name: currentProduct.category.name,
+      },
+      NOT: {
+        id: currentProduct.id,
+      },
+    };
+
+    const data = this.getProducts({
+      where,
+      orderBy: {
+        createAt: 'desc',
+      },
+      select: productObj,
+    });
+
+    return data;
   }
 
   async createProduct() {
@@ -165,27 +192,28 @@ export class ProductService {
     });
   }
 
-  async getSimiliar(id: number) {
-    const currentProduct = await this.byId(id);
+  async getCount(where: Prisma.ProductWhereInput) {
+    return await this.prisma.product.count({ where });
+  }
 
-    if (!currentProduct)
-      throw new NotFoundException('Current product not found');
+  getSort(sort: EnumProductSort) {
+    const prismaSort: Prisma.ProductOrderByWithRelationInput[] = [];
 
-    const products = await this.prisma.product.findMany({
-      where: {
-        category: {
-          name: currentProduct.category.name,
-        },
-        NOT: {
-          id: currentProduct.id,
-        },
-      },
-      orderBy: {
-        createAt: 'desc',
-      },
-      select: productObj,
-    });
+    switch (sort) {
+      case EnumProductSort.LOW_PRICE:
+        prismaSort.push({ price: 'asc' });
+        break;
+      case EnumProductSort.HIGH_PRICE:
+        prismaSort.push({ price: 'desc' });
+        break;
+      case EnumProductSort.NEWEST:
+        prismaSort.push({ price: 'desc' });
+        break;
+      case EnumProductSort.OLDEST:
+        prismaSort.push({ price: 'asc' });
+        break;
+    }
 
-    return products;
+    return prismaSort;
   }
 }
